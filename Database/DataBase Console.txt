@@ -1,0 +1,649 @@
+use eheal;
+
+CREATE TABLE Person
+(
+    ID int PRIMARY KEY auto_increment,
+    UserName varchar(225)  NOT NULL Unique,
+    Password varchar(225)  NOT NULL,
+    FirstName nvarchar(50) NOT NULL ,
+    LastName nvarchar(50) NOT NULL ,
+    CNIC nvarchar(50) unique NOT NULL,
+    PhoneNumber varchar(225) NOT NULL,
+    Email varchar(225)NOT NULL unique,
+    -- recentPic image
+    DateOfBirth date NOT NULL,
+    Gender varchar(10),
+    SecurityQuestion varchar(500) NOT NULL,
+    SecurityAnswer varchar(500) NOT NULL
+);
+
+
+create procedure searchDoctorBySpecialization(in spec nvarchar(50))
+begin
+    select * from doctor JOIN Person P on P.ID = Doctor.ID
+    where Doctor.Specialization LIKE spec;
+end;
+
+CREATE PROCEDURE loginPatient (in username varchar(225) , in password varchar(225))
+BEGIN
+    select * from Person
+    where Person.UserName LIKE username AND Person.Password LIKE password;
+END;
+
+
+
+create table specializationDegrees(
+  specializationName nvarchar(50) unique ,
+  specializationID int primary key auto_increment
+);
+
+create procedure addNewSpecialization(in newSpecilization nvarchar(50))
+BEGIN
+
+    INSERT Into specializationDegrees(specializationName)
+        VALUES (newSpecilization);
+end;
+select * from person;
+
+
+create procedure getSpecializations()
+BEGIN
+    select *
+    from specializationDegrees;
+end;
+DROP TABLE IF EXISTS Doctor ;
+Create Table Doctor
+(
+    ID int primary key auto_increment,
+    RegistrationNumber nvarchar(25) Not NULL unique,
+    Specialization nvarchar(50) Not NULL ,
+    FOREIGN KEY (ID) references Person (ID) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+
+create procedure getDoctorAppointments()
+begin
+    select * from Appointments JOIN DoctorAppointments DA on Appointments.patientUserName = DA.patientUserName
+    where Appointments.patientUserName LIKE (select currentUser.currentuser from currentUser);
+end;
+
+CREATE PROCEDURE signUpAsDoctor(in registrationNumber nvarchar(50),in specialization nvarchar(50),in userName nvarchar(50) )
+BEGIN
+    DECLARE id int;
+    select Person.ID into id
+    from person
+    where person.UserName = userName;
+
+    INSERT INTO Doctor(id, RegistrationNumber, specialization) VALUES (id,registrationNumber,specialization);
+end;
+
+create TABLE DoctorDegrees (
+    registrationNumber nvarchar(50),
+    degreeName nvarchar(50) not NULL ,
+    completionYear int Not Null,
+    institute NVARCHAR(50),
+    constraint DOCTORDEGREES_REGISTRATIONNUMBER_FK FOREIGN KEY (registrationNumber) REFERENCES Doctor(RegistrationNumber)
+);
+
+create procedure addDoctorDegree(in registrationNumber nvarchar(50), in degreeName nvarchar(50), in completionYear int, in institute nvarchar(50))
+begin
+    INSERT INTO DoctorDegrees(registrationNumber, degreeName, completionYear, institute) VALUES (registrationNumber,degreeName,completionYear,institute);
+end;
+
+
+
+
+-- show which degree belongs to which doc, as a doc can have multiple degrees
+
+
+-- keeps info of medical centres individually
+
+select * from medicalcentre;
+create table MedicalCentre
+(
+    CentreType nvarchar(50),
+    ID int PRIMARY KEY auto_increment,
+    CentreName varchar(50),
+    CentreAddress varchar(150) unique,
+    DoctorRegistrationNumber nvarchar(50),
+    StartTime TIME,
+    EndTime TIME
+);
+select * from appointments;
+select * from doctorappointments;
+
+create procedure addNewMedicalCentre(in doctorRegistrationNumber nvarchar(50),in name nvarchar(50), in address nvarchar(50), in type nvarchar(50), in startTime Time, in endTime Time)
+begin
+    insert into MedicalCentre(DoctorRegistrationNumber,CentreType, CentreName, CentreAddress,StartTime,EndTime) VALUES (doctorRegistrationNumber,type,name,address,startTime,endTime);
+end;
+
+-- keeps info of which medical centre as has which doc, as a doc can have multiple medical centres and vice versa
+
+-- SignUpAsPatient
+
+select * from person;
+CREATE PROCEDURE SignUpAsPatient (in username varchar(225), in password varchar(225),
+fname nvarchar(50)  , lname nvarchar(50), cnic nvarchar(50),
+phonenum varchar(100), email varchar(225) , dob date ,
+gender varchar(10) , securityQ varchar(225), securityAns varchar(225))
+
+BEGIN
+    if not exists (select* from person p where username = p.username AND password = p.password )
+    THEN
+        insert into person (username, password, firstname, lastname, cnic, phonenumber, email, dateofbirth, gender, securityquestion, securityanswer)
+        values (username , password , fname ,lname , cnic,phonenum ,email , dob , gender ,securityQ , securityAns) ;
+    end if;
+END;
+
+CREATE Procedure checkUniqueUserName(in username nvarchar(50), out successMessage boolean)
+Begin
+        If EXISTS(select UserName from Person where UserName LIKE username)
+            then
+                set successMessage = false; -- it exists
+            else
+                set successMessage = true;  -- does not exists
+        end if;
+End;
+
+select * from person;
+
+create table healthserviceproviders (
+    id int primary key auto_increment,
+    hspName nvarchar(50) not null,
+    registrationNumber nvarchar(50)not null unique ,
+    address nvarchar(50) not null,
+    phoneNumber nvarchar(50) not null ,
+    password nvarchar(50)not null,
+    email nvarchar(50)not null,
+    type bit  not null -- 1 for pharmacy 0 for laboratory
+);
+select * from doctor;
+select * from person;
+select * from healthserviceproviders;
+
+create procedure loginPharmacy(in regNum nvarchar(50), in pass nvarchar(50))
+begin
+    select * from healthserviceproviders
+    where healthserviceproviders.registrationNumber LIKE regNum and pass LIKE healthserviceproviders.password and healthserviceproviders.type = false;
+end;
+
+create table currentPharamcy(pharmaRegNum nvarchar(50));
+create procedure setCurrentPharmacy(in regNum nvarchar(50))
+begin
+        truncate currentPharamcy;
+        insert into currentPharamcy(pharmaRegNum) values (regNum);
+    end;
+
+create procedure signupAsPharmacy(in name nvarchar(50), in address nvarchar(50), in registrationNumber nvarchar(50),
+ in password nvarchar(50),in phoneNumber nvarchar(50), in email nvarchar(50))
+ begin
+         insert into healthserviceproviders(hspName,address,registrationNumber,password,phoneNumber,email,type)
+         VALUES (name,address,registrationNumber,password,phoneNumber,email,1);
+ end;
+
+create procedure deletePharmacy(in registrationNumber nvarchar(50))
+begin
+    delete from healthserviceproviders
+    where healthserviceproviders.registrationNumber LIKE registrationNumber;
+end;
+
+create procedure deleteLaboratory(in registrationNumber nvarchar(50))
+begin
+    delete from healthserviceproviders
+    where healthserviceproviders.registrationNumber LIKE registrationNumber;
+end;
+
+create procedure signupAsLaboratory(in name nvarchar(50), in address nvarchar(50), in registrationNumber nvarchar(50),
+ in password nvarchar(50),in phoneNumber nvarchar(50), in email nvarchar(50))
+ begin
+
+         insert into healthserviceproviders(hspName,address,registrationNumber,password,phoneNumber,email,type)
+         VALUES (name,address,registrationNumber,password,phoneNumber,email,0);
+ end;
+
+select * from person;
+select * from doctor;
+select * from doctordegrees;
+
+select * from medicalcentre;
+Truncate medicalcentre;
+
+select * from person;
+
+create procedure getDoctorsByName(in fName nvarchar(50), in lName nvarchar(50))
+begin
+        select * from person JOIN Doctor D on Person.ID = D.ID
+        where person.FirstName Like fNAme And Person.LastName = lName
+        And Person.ID in (
+            select Doctor.ID
+            from Doctor
+        );
+end;
+
+create procedure getMedicalCentres(in docRegistrationNumber nvarchar(50))
+begin
+    select * from medicalcentre
+    where medicalcentre.DoctorRegistrationNumber LIKE docRegistrationNumber;
+end;
+
+
+create table currentUser(
+    currentUser nvarchar(50)    -- userName of Current User
+);
+
+create procedure logOutCurrentUser()
+begin
+    TRUNCATE currentUser;
+end;
+
+
+create procedure cancelAppointment(in appNum int)
+begin
+    update Appointments
+    set Appointments.status = 2
+    where Appointments.appointmentNumber = appNum;
+end;
+
+
+create table Appointments(
+     startTime Time,
+     endTime Time,
+     appointmentNumber int primary key auto_increment,
+     date Date,
+     status int,
+     patientUserName nvarchar(50)
+
+);
+select * from appointments
+select * from DoctorAppointments;
+truncate appointments;
+drop table DoctorAppointments;
+
+create TABLE DoctorAppointments(
+    patientUserName nvarchar(50),
+    registrationNumber nvarchar(50),
+    currentCondition nvarchar(100),
+    reasonOfCanellation nvarchar(50),
+    appointmentNumber int,
+    foreign key (appointmentNumber) references Appointments(appointmentNumber) On delete set null on update cascade
+
+);
+
+
+select * from TempDoctor;
+select * from currentUser;
+select * from appointments;
+select * from doctorappointments;
+
+drop procedure bookAppointment;
+create procedure bookAppointment(in sTime Time, in eTime Time, in selectedDate date,in description nvarchar(100))
+begin
+    insert into appointments(startTime,endTime,date,status,patientUserName) VALUES (sTime,eTime,selectedDate,0,(select currentUser.currentUser from currentUser));
+    insert into doctorappointments(patientUserName, registrationNumber, currentCondition,appointmentNumber) VALUES ((select currentUser.currentUser from currentUser),(select TempDoctor.registrationNumber from TempDoctor ), description,
+    (select Appointments.appointmentNumber from appointments
+        where Appointments.patientUserName LIKE (select currentUser.currentUser from currentUser)
+        ANd Appointments.endTime LIKE eTime And Appointments.startTime LIKE sTime    )
+                                                                                                                    );
+end;
+
+create table TempDoctor(registrationNumber nvarchar(50));
+select * from TempDoctor;
+Truncate TempDoctor;
+create procedure setTempDoc(in regNum nvarchar(50))
+begin
+    INSERT INTO TempDoctor(registrationNumber) VALUES (regNum);
+end;
+
+create procedure getTempDoc()
+begin
+    select * from tempdoctor;
+end;
+create procedure removeTempDoc()
+begin
+    Truncate TempDoctor;
+end;
+
+
+create procedure setCurrentUser(in userName nvarchar(50))
+begin
+    truncate currentDoctor;
+    INSERT INTO currentUser(currentUser) VALUES (userName);
+end;
+
+
+
+create procedure getCurrentUser()
+begin
+    select * from currentUser;
+end;
+
+create procedure getDoctorNames()
+begin
+    select Person.FirstName , Person.LastName from person
+    where Person.ID  in (
+        select doctor.id from doctor
+    );
+end;
+
+
+create procedure getDoctorNameByRegistrationNumber(in regNum nvarchar(50))
+begin
+   select *
+   from Person JOIN Doctor On Person.ID = Doctor.ID JOIN DoctorAppointments ON Doctor.RegistrationNumber = DoctorAppointments.registrationNumber
+    where DoctorAppointments.registrationNumber LIKE regNum;
+
+end;
+
+create table underObservationAppointment(
+    doctorName nvarchar(50),
+    docSpecialization nvarchar(50),
+    phoneNumber nvarchar(50),
+    email nvarchar(50),
+    gender nvarchar(50),
+    healthcentre nvarchar(50),
+    appointmentDate date,
+    startTime Time,
+    endTime Time,
+    status int,
+    appNum int
+);
+
+
+
+
+
+
+select * from underObservationAppointment;
+
+create procedure keepUnderObservation(in docName nvarchar(50),in docSpec nvarchar(50),in phoneNum nvarchar(50),in docEmail nvarchar(50),in docGender nvarchar(50),in healthcenter nvarchar(50),in appDate date,in start_Time Time,in end_Time Time, in stat int, in aNum int)
+begin
+  insert into underObservationAppointment(doctorName, docSpecialization, phoneNumber, email, gender, healthcentre, appointmentDate, startTime, endTime,status,appNum)  VALUES (docName,docSpec,phoneNum,docEmail,docGender,healthcenter,appDate,start_Time,end_Time,stat,aNum);
+end;
+
+create procedure getUnderObservation()
+begin
+    select * from underObservationAppointment;
+end;
+
+create procedure removeUnderObservation()
+begin
+    truncate underObservationAppointment;
+end;
+
+
+create table medicalRecords(
+  patientUsername nvarchar(50),
+  diseaseName nvarchar(50),
+  occurenceYear int,
+  occurenceMonth int,
+  recordNumber int primary key auto_increment,
+  status nvarchar(50)
+);
+
+create procedure addMedicalRecord(in diseaseName nvarchar(50), in occurYear int, in occurMonth int,in stat nvarchar(50))
+begin
+    insert into medicalRecords(patientUsername, diseaseName, occurenceYear, occurenceMonth, status) Values ((select * from currentUser),diseaseName,occurYear,occurMonth,stat);
+end;
+
+create procedure getRecordNumber(in diseaseName nvarchar(50), in occurYear int, in occurMonth int,in stat nvarchar(50))
+begin
+    select *
+    from medicalRecords
+    where medicalRecords.diseaseName Like diseaseName AND
+    medicalRecords.occurenceMonth = occurMonth AND medicalRecords.occurenceYear = occurYear
+    And medicalRecords.status like stat;
+end;
+
+create procedure getMedicalRecords()
+begin
+    select * from medicalRecords
+    where medicalRecords.patientUsername LIKE (select * from currentUser);
+
+end;
+truncate currentDoctor;
+create table currentDoctor(userName nvarchar(50) unique );
+
+create procedure setCurrentDoctor(in userName nvarchar(50))
+begin
+    truncate currentDoctor;
+    insert into currentDoctor(userName) values (userName);
+end;
+
+select * from appointments;
+select  * from doctorappointments
+
+create procedure loginDoctor(in userName nvarchar(50), in password nvarchar(50))
+begin
+   if EXISTS( select * from person where Person.UserName LIKE userName and Person.Password LIKE password
+    and person.ID in (
+           select Doctor.id
+           from doctor
+       ))
+       then
+       select * from Doctor JOIN Person P on P.ID = Doctor.ID
+       where p.UserName LIKE UserName and p.Password LIKE password;
+   end if;
+
+end;
+
+
+create procedure getCurrentDoctorsAppointments()
+begin
+    select * from appointments JOIN DoctorAppointments DA on Appointments.appointmentNumber = DA.appointmentNumber
+    where da.registrationNumber = (
+        select Doctor.RegistrationNumber from doctor JOIN person P on doctor.ID = P.ID
+        where p.UserName = (
+            select currentDoctor.userName from currentDoctor
+
+            )
+        );
+end;
+
+create procedure getPatientNamebyUserName(in userName nvarchar(50))
+begin
+    select Person.FirstName, Person.LastName from person
+    where person.userName like userName;
+end;
+
+create procedure reshecduleAppointment(in appNum int)
+begin
+    update appointments
+    set status = 3
+    where appointmentNumber = appNum;
+end;
+
+
+create procedure approveAppointment(in appNum int)
+begin
+    update appointments
+    set status= 1
+    where appointmentNumber = appNum;
+end;
+
+create procedure getApprovedAppointments()
+begin
+    select * from appointments JOIN DoctorAppointments DA on Appointments.appointmentNumber = DA.appointmentNumber
+    where da.registrationNumber = (
+        select Doctor.RegistrationNumber from doctor JOIN person P on doctor.ID = P.ID
+        where p.UserName = (
+            select currentDoctor.userName from currentDoctor
+
+        )
+    ) and Appointments.status = 1;
+end;
+truncate currentDoctor;
+select * from currentDoctor;
+select * from tempdoctor;
+
+create table appointmentBeingDiagnosed(appNum int );
+
+create procedure addAppointmentBeingDiagnosed(in appNum int)
+begin
+    truncate appointmentBeingDiagnosed;
+    insert into appointmentBeingDiagnosed(appNum) values (appNum);
+end;
+
+select * from medicalRecords;
+
+create table prescription(
+    diseaseName nvarchar(50),
+    prescriptionNumber int auto_increment primary key,
+    appointmentNumber int,
+    foreign key (appointmentNumber) references Appointments(appointmentNumber),
+    prescribedDate DATE,
+    doctorName nvarchar(50),
+    doctorComment nvarchar(50),
+    duration int
+);
+drop procedure addPrescription;
+
+create procedure addPrescription(in dName nvarchar(50),in docComment nvarchar(50), in dur int)
+begin
+    insert into prescription(diseaseName, appointmentNumber, prescribedDate, doctorName, doctorComment, duration)
+    VALUES (dName,(select * from appointmentBeingDiagnosed),current_date,(select FirstName from Person JOIN Doctor on Doctor.ID = Person.ID JOIN currentDoctor on Person.UserName LIKE currentDoctor.userName),docComment,dur);
+end;
+select * from medicine;
+select * from appointments;
+select * from labtest;
+select *
+from prescription;
+select * from medicine;
+select * from prescription;
+create procedure getPrescriptions()
+begin
+    select * from appointments JOIN prescription ON Appointments.appointmentNumber = prescription.appointmentNumber JOIN medicine On medicine.appointmentNumber = prescription.appointmentNumber JOIN labtest on LabTest.appointmentNumber = Medicine.appointmentNumber
+    where Appointments.patientUserName LIKE (
+        select * from currentuser
+        );
+end;
+create table Medicine(
+    medicineName nvarchar(50),
+    doseInMorning double,
+    doseInNoon double,
+    doseInNight double,
+    medicineNumber int primary key auto_increment,
+    appointmentNumber int,
+    orderStatus nvarchar(50),
+    foreign key (appointmentNumber) references Appointments(appointmentNumber)
+);
+
+create procedure setAvailable(in medName nvarchar(50))
+begin
+    update medicine
+    set orderStatus = 'Available'
+    where medicineName LIKE medName and appointmentNumber like (select * from currentOrder);
+end;
+
+truncate medicine;
+create procedure addMedicine(in medName nvarchar(50),in mornDose double, in noonDose double, in nightDose double)
+begin
+    insert into Medicine(medicineName, doseInMorning, doseInNoon, doseInNight, appointmentNumber)
+    VALUES (medName,mornDose,noonDose,nightDose,(select * from appointmentBeingDiagnosed));
+end;
+select * from prescription;
+select * from medicine;
+select * from currentuser
+select * from labtest;
+
+create procedure getPrescriptionOfCurrentUser()
+begin
+select * from prescription JOIN Appointments A on prescription.appointmentNumber = A.appointmentNumber
+where patientUserName LIKE (select * from currentuser);
+end;
+create table LabTest(
+  appointmentNumber int,
+  foreign key (appointmentNumber) references Appointments(appointmentNumber),
+  labTestName nvarchar(50),
+  labTestNumber int auto_increment primary key
+
+);
+
+create procedure addLabTest(in labTestName nvarchar(50))
+begin
+    insert into LabTest (appointmentNumber, labTestName) VALUES ((select * from appointmentBeingDiagnosed),labTestName);
+end;
+
+
+create procedure getMedcinesByAppNum(in appNum int)
+begin
+    select * from medicine where Medicine.appointmentNumber = appNum;
+end;
+
+create procedure getLabTestByAppNum(in appNum int)
+begin
+    select * from LabTest where LabTest.appointmentNumber = appNum;
+end;
+
+create procedure getAvailablePharmacies()
+begin
+    select * from healthserviceproviders where type = false;
+end;
+
+create table tempPrescription(appNum int);
+
+create procedure addTempPrescription(in appointmentNumber int)
+begin
+    truncate tempPrescription;
+    insert into tempPrescription(appNum)VALUES (appointmentNumber);
+
+end;
+
+ create table orders(
+     appNum int,
+     orderNum int auto_increment primary key,
+     pharmacyRegNum nvarchar(50),
+     foreign key (pharmacyRegNum) references healthserviceproviders(registrationNumber)
+ );
+select * from healthserviceproviders;
+create procedure placeOrder(in RegNum nvarchar(50))
+begin
+    insert into orders(appNum, pharmacyRegNum) VALUES ((select * from tempPrescription),RegNum);
+end;
+
+create procedure getOrders()
+begin
+    select * from orders where pharmacyRegNum LIKE (select * from currentPharamcy);
+end;
+
+create procedure getMedicinesAgainstAppNum(in appNum int)
+begin
+    select * from medicine where Medicine.appointmentNumber LIKE appNum;
+end;
+
+create table currentOrder(appNum int);
+create procedure setCurrentOrder(in appNum int)
+begin
+    truncate currentOrder;
+    insert into currentOrder(appNum) values (appNum);
+end;
+
+create procedure getPrescriptionsOfCurrentUser()
+begin
+    select * from prescription JOIN Appointments A on A.appointmentNumber = prescription.appointmentNumber
+    and A.patientUserName LIKE (select * from currentuser);
+end;
+
+create procedure  viewFirstAid ()
+begin
+    select * from firstAid ;
+end;
+select * from healthserviceproviders
+create table firstAid(
+                         incident varchar(200),
+                         measureLink varchar(900)
+);
+
+insert into firstaid values ('unconscious','https://patient.info/signs-symptoms/breathlessness-and-breathing-difficulties-dyspnoea/dealing-with-an-adult-who-is-unresponsive');
+
+insert into firstaid values ('bleeding' , 'https://www.nhsinform.scot/tests-and-treatments/emergencies/first-aid#bleeding');
+
+insert into firstaid values ('burn' ,'https://www.nhsinform.scot/tests-and-treatments/emergencies/first-aid#burns');
+
+insert into firstaid values ('choking' ,'https://www.nhsinform.scot/tests-and-treatments/emergencies/first-aid#choking');
+
+insert into firstaid values ('electric shock','https://www.nhsinform.scot/tests-and-treatments/emergencies/first-aid#electrocution');
+
+insert into firstaid values ('poisoning','https://www.nhsinform.scot/tests-and-treatments/emergencies/first-aid#poisoning');
+
+select* from firstAid ;
